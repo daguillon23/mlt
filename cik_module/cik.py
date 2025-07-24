@@ -11,8 +11,6 @@ class Edgar:
         req = requests.get(self.url, headers=headers)
         self.json = req.json()
 
-        # print(type(self.json))
-
         # dicts is a list of two dicts
         # index 0: name is key, info is value
         # index 1: ticker is key, info is value
@@ -23,21 +21,16 @@ class Edgar:
     def _get_dicts(self):
         name_dict = {}
         tick_dict = {}
-       # with open('info.text', 'w') as file:
-        #    json.dump(self.json, file, indent=4)
+
         for company in self.json['data']:
-            #print(company)
+
             cik = company[0]
             name = company[1]
             ticker = company[2]
             exchange = company[3]
-            #print(name)
+
             name_dict[name] = [cik, name, ticker, exchange]
             tick_dict[ticker] = [cik, name, ticker, exchange]
-
-            #print(name_dict)
-          #  for item in company:
-           #     print(item)
 
         return [name_dict, tick_dict]
     
