@@ -4,7 +4,7 @@
 ### [cik.py](cik_module/cik.py)
 - Requests company data from an SEC [data file](https://www.sec.gov/files/company_tickers_exchange.json).
 - Upon successful request, creates two dicts that contains every company's CIK, name, ticker, and exchange association.  
-  -One dict accepts company names as keys (retrieved via `name_to_cik()`).
+  -One dict accepts company names as keys (retrieved via `name_to_cik()`).  
   -One dict accepts company tickers as keys (retrieved via `tick_to_cik()`).
 
 
