@@ -1,4 +1,10 @@
 # MLT GenAI Project
-work in progress (:
+## A generative AI project based on the SEC's [EDGAR conformed list](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data) of publically-traded companies.
 
-Based on the SEC's EDGAR conformed list of publically-traded companies, cik_module/cik.py creates two dicts: one accepts company names as keys, the other accepts company tickers as keys.
+### [cik.py](cik_module/cik.py)
+- Requests company data from an SEC [data file](https://www.sec.gov/files/company_tickers_exchange.json).
+- Upon successful request, creates two dicts that contains every company's CIK, name, ticker, and exchange association.
+  -One dict accepts company names as keys (retrieved via `name_to_cik()`).
+  -One dict accepts company tickers as keys (retrieved via `tick_to_cik()`).
+
+
