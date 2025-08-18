@@ -6,5 +6,9 @@ A generative AI project led by MLT Coach Gerard Spivey. Based on public company 
 - Upon successful request, creates two dicts that both contain every company's CIK, name, ticker, and exchange association.  
   - `name_dict` accepts company names as keys (retrieved via `name_to_cik()`).  
   - `tick_dict` accepts company tickers as keys (retrieved via `tick_to_cik()`).
+- Interacts with EDGAR API to search for requested financial reports.
+  - `annual_filing()` returns 10-K forms.
+  - `quarterly_filing()` returns 10-Q and 10-K forms.
+  
 
 
