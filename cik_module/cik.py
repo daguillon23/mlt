@@ -66,13 +66,13 @@ class Edgar:
         appended += str(cik)
         return appended
     
-    # returns 'recent' array from EDGAR for filing use
-    def _get_recent(self, cik):
+    # returns json from EDGAR for filing use
+    def _get_json(self, cik):
         cik_append = self._append_zeros(cik)
         url = f'https://data.sec.gov/submissions/CIK{cik_append}.json'
         req = requests.get(url, headers=HEADERS)
         try:
-            return req.json()['filings']['recent']
+            return req.json()
         except:
             return NOT_FOUND('CIK')
         
@@ -90,9 +90,9 @@ class Edgar:
             entry = recent['primaryDocDescription'][i]
             if (doc_type in entry):
                 num_q += 1
-                if str(year) not in recent['filingDate'][i]:
+                #if str(year) not in recent['filingDate'][i]:
                     # 10-Q in 'year' not found
-                    break
+                 #   break
                 if (num_q == quarter):
                     ind = i
                     break
@@ -101,14 +101,20 @@ class Edgar:
     # returns 10-K form for 'cik' in 'year'.
     def annual_filing(self, cik, year):
         return self.quarterly_filing(cik, year, 4)
+    
+    def _get_filing_month(self, recent, ind):
+        date = recent['filingDate'][ind]
+        month = int(date[5:7])
+        return month
 
     # returns 10-Q/10-K form for 'cik' in 'quarter' of 'year'.
     # expect 'quarter' to be between 1 and 4 for user simplicity.
     # 'quarter' of 4 represents 10-K request.
     # 'quarter' of 1 through 3 represents 10-Q request.
     def quarterly_filing(self, cik, year, quarter):
-        
-        # verify arguments
+        # verify arguments.
+        FISCAL_CUTOFF = 6
+        # 10-K will be published in following year (i.e. 2024 10-K published in 2025).
         k_search = False
         if (not isinstance(year, int)) or (year < 1900):
             return 'Invalid year.'
@@ -120,19 +126,40 @@ class Edgar:
         elif (quarter < 1) or (quarter > 4):
             return 'Invalid quarter.'
 
-        recent = self._get_recent(cik)
+        json = self._get_json(cik)
+        # retrieve fiscal year end date
+        fiscal_end = json['fiscalYearEnd']
+        # retrieve month within fiscal end
+        month = int(fiscal_end[:-2])
+
+        recent = json['filings']['recent']
         ind = 0
         found_k = False
         doc_type = '10-K'
     
-        # if searching for 10-Q, search for 10-K from (year - 1) first. 
+        # if a company's fiscal year ends on or after june (i.e. majority of the year),
+        # use previous year's 10-K as start for quarter search.
+        # else use given year as start for quarter search.
         year_search = year
         if not k_search:
+            # if a quarter search, begin at previous year's 10-K
+
+            # for companies whose fiscal year ends before june or after october, "previous year" is current year
+            # for companies whose fiscal year ends after june, "previous year" is last year
             year_search -= 1
 
+        #if k_search:
+        #   year_search += 1
+
         for entry in recent['primaryDocDescription']:
-            # if correct doc and correct year, 10-K found
-            if (doc_type in entry) and (str(year_search) in recent['filingDate'][ind]):
+            # if correct doc and 
+            # 1. year found & filing date after june (i.e. fiscal year takes up majority of calendar year) or
+            # 2. year + 1 found & filing date before june
+            # then 10-K found
+            filing_month = self._get_filing_month(recent, ind)
+            after_june = (str(year_search) in recent['filingDate'][ind]) and (filing_month >= FISCAL_CUTOFF)
+            before_june = (str(year_search + 1) in recent['filingDate'][ind]) and (filing_month < FISCAL_CUTOFF)
+            if (doc_type in entry) and (after_june or before_june):
                 found_k = True
                 break
             ind += 1
@@ -153,9 +180,9 @@ class Edgar:
         req = requests.get(url, headers=HEADERS)
 
         # for testing purposes
-        #return url
+        return url
 
-        return req.text
+        #return req.text
         # TODO use markdown to remove unnecessary characters for easier use by LLM
 
 
@@ -195,4 +222,15 @@ sec = Edgar('https://www.sec.gov/files/company_tickers_exchange.json')
 
 #cik_tests(sec)
 #filing_tests(sec)
+nvidia_cik = sec.name_to_cik('NVIDIA CORP')[0]
+google_cik = sec.tick_to_cik('GOOGL')[0]
+apple_cik = sec.name_to_cik('Apple Inc.')[0]
+#print(sec.annual_filing(320193, 2024))
+#print(sec.annual_filing(1652044, 2024))
+year = 2024
+quarter = 4
+
+print(sec.quarterly_filing(nvidia_cik, year, quarter))
+print(sec.quarterly_filing(google_cik, year, quarter))
+print(sec.quarterly_filing(apple_cik, year, quarter))
 
