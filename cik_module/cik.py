@@ -78,21 +78,24 @@ class Edgar:
         
     # helper method to find 10-Q form.
     # assumes company properly files 3 10-Qs per fiscal year.
-    def _quarter_search(self, recent, year, quarter, start):
-        # counts down from prev year's 10-K.
+    def _quarter_search(self, recent, quarter, start, end, step):
+        # counts step from given year's 10-K.
         # counts 10-Qs found until num matches 'quarter'.
         # if date of entry exceeds 'year' or array runs out of entries, returns -1.
         # returns index of 10-Q form upon success.
+
+        
         num_q = 0
+        if step == 1:
+            # if searching chronologically backwards (forward through array),
+            # need to account for fact that 10-Qs will appear backwards too 
+            num_q = 4
         doc_type = '10-Q'
         ind = -1
-        for i in range(start, -1, -1):
+        for i in range(start, end, step):
             entry = recent['primaryDocDescription'][i]
             if (doc_type in entry):
-                num_q += 1
-                #if str(year) not in recent['filingDate'][i]:
-                    # 10-Q in 'year' not found
-                 #   break
+                num_q -= step
                 if (num_q == quarter):
                     ind = i
                     break
@@ -106,6 +109,11 @@ class Edgar:
         date = recent['filingDate'][ind]
         month = int(date[5:7])
         return month
+    
+    def _find_k(self, year_search, recent, ind, filing_month, FISCAL_CUTOFF):
+        after_june = (str(year_search) in recent['filingDate'][ind]) and (filing_month >= FISCAL_CUTOFF)
+        before_june = (str(year_search + 1) in recent['filingDate'][ind]) and (filing_month < FISCAL_CUTOFF)
+        return after_june or before_june
 
     # returns 10-Q/10-K form for 'cik' in 'quarter' of 'year'.
     # expect 'quarter' to be between 1 and 4 for user simplicity.
@@ -134,42 +142,44 @@ class Edgar:
 
         recent = json['filings']['recent']
         ind = 0
-        found_k = False
         doc_type = '10-K'
-    
-        # if a company's fiscal year ends on or after june (i.e. majority of the year),
-        # use previous year's 10-K as start for quarter search.
-        # else use given year as start for quarter search.
-        year_search = year
-        if not k_search:
-            # if a quarter search, begin at previous year's 10-K
-
-            # for companies whose fiscal year ends before june or after october, "previous year" is current year
-            # for companies whose fiscal year ends after june, "previous year" is last year
-            year_search -= 1
-
-        #if k_search:
-        #   year_search += 1
+        prev_k_found = False
 
         for entry in recent['primaryDocDescription']:
             # if correct doc and 
             # 1. year found & filing date after june (i.e. fiscal year takes up majority of calendar year) or
             # 2. year + 1 found & filing date before june
             # then 10-K found
-            filing_month = self._get_filing_month(recent, ind)
-            after_june = (str(year_search) in recent['filingDate'][ind]) and (filing_month >= FISCAL_CUTOFF)
-            before_june = (str(year_search + 1) in recent['filingDate'][ind]) and (filing_month < FISCAL_CUTOFF)
-            if (doc_type in entry) and (after_june or before_june):
-                found_k = True
-                break
+            if (doc_type in entry):
+                filing_month = self._get_filing_month(recent, ind)
+                
+                if not k_search:
+                    # if a quarter search, will begin search at previous year's 10-K
+                    prev_k_found = self._find_k(year - 1, recent, ind, filing_month, FISCAL_CUTOFF)
+                curr_k_found = self._find_k(year, recent, ind, filing_month, FISCAL_CUTOFF)
+
+                if curr_k_found:
+                    curr_ind = ind
+                    if k_search:
+                        break
+                if (not k_search) and prev_k_found:
+                    break
             ind += 1
-        if not found_k:
+        if (not curr_k_found) and (not prev_k_found):
             return NOT_FOUND('10-K')
         
         # if 10-K requested, search complete.
         # if 10-Q requested, must find using prev year's 10-K as starting point.
+        # possible that previous year's 10-K does not exist. in that case,
+        # use this year as starting point and search forwards (chronologically backwards).
         if not k_search:
-            ind = self._quarter_search(recent, year, quarter, ind)
+            if prev_k_found:
+                ind = self._quarter_search(recent, quarter, ind, -1, -1)
+            else:
+                # if previous 10-K wasnt found, use this year's 10-K as starting point
+                # and search forward through array
+                ind = self._quarter_search(recent, quarter, curr_ind, len(recent['primaryDocDescription']), 1)
+            
             if ind == -1:
                 return NOT_FOUND('10-Q')
         
@@ -195,42 +205,42 @@ def cik_tests(sec):
     print(' ')
 
 def filing_tests(sec):
-    # testing with Apple info
+    nvidia_cik = sec.name_to_cik('NVIDIA CORP')[0]
+    google_cik = sec.tick_to_cik('GOOGL')[0]
+    apple_cik = sec.name_to_cik('Apple Inc.')[0]
     print('EDGAR API TESTS')
     print('annual')
     # should succeed
-    print(sec.annual_filing(320193, 2024))
-    print(sec.annual_filing(320193, 2014))
+    print(sec.annual_filing(nvidia_cik, 2024))
+    print(sec.annual_filing(google_cik, 2022))
     # errors should be handled
-    print(sec.annual_filing(320193, 1904))
-    print(sec.annual_filing(320193, 0))
+    print(sec.annual_filing(apple_cik, 1904))
+    print(sec.annual_filing(google_cik, 0))
     print(sec.annual_filing('doesnt exist', 2024))
     print(' ')
 
     print('quarterly')
     # should succeed
-    print(sec.quarterly_filing(320193, 2025, 1))
-    print(sec.quarterly_filing(320193, 2022, 3))
-    print(sec.quarterly_filing(320193, 2020, 4))
+    print(sec.quarterly_filing(apple_cik, 2025, 1))
+    print(sec.quarterly_filing(google_cik, 2022, 3))
+    print(sec.quarterly_filing(nvidia_cik, 2020, 4))
     # errors should be handled
-    print(sec.quarterly_filing(320193, 2025, 3))
-    print(sec.quarterly_filing(320193, 2015, 5))
+    print(sec.quarterly_filing(google_cik, 2025, 3))
+    print(sec.quarterly_filing(nvidia_cik, 2015, 5))
     print(' ')
+
+    year = 2024
+    quarter = 4
+    print(sec.quarterly_filing(nvidia_cik, year, quarter))
+    print(sec.quarterly_filing(google_cik, year, quarter))
+    print(sec.quarterly_filing(apple_cik, year, quarter))
 
 
 sec = Edgar('https://www.sec.gov/files/company_tickers_exchange.json')
 
 #cik_tests(sec)
 #filing_tests(sec)
-nvidia_cik = sec.name_to_cik('NVIDIA CORP')[0]
-google_cik = sec.tick_to_cik('GOOGL')[0]
-apple_cik = sec.name_to_cik('Apple Inc.')[0]
-#print(sec.annual_filing(320193, 2024))
-#print(sec.annual_filing(1652044, 2024))
-year = 2024
-quarter = 4
 
-print(sec.quarterly_filing(nvidia_cik, year, quarter))
-print(sec.quarterly_filing(google_cik, year, quarter))
-print(sec.quarterly_filing(apple_cik, year, quarter))
+
+
 
