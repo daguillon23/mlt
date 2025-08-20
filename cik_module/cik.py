@@ -1,11 +1,15 @@
 import requests
 import copy
 import math
+from markdownify import markdownify as md
+import codecs
+from bs4 import BeautifulSoup
 
 def NOT_FOUND(type):
     return f'{type} not found.'
 
 HEADERS = {'user-agent': 'MLT DA diego.eaguillon@gmail.com'}
+URL = 'https://www.sec.gov/files/company_tickers_exchange.json'
 
 class Edgar:
     # initializes Edgar object with most recent data from url
@@ -27,9 +31,7 @@ class Edgar:
     def _get_dicts(self):
         name_dict = {}
         tick_dict = {}
-
         for company in self._json['data']:
-
             cik = company[0]
             name = company[1]
             ticker = company[2]
@@ -37,7 +39,6 @@ class Edgar:
 
             name_dict[name] = [cik, name, ticker, exchange]
             tick_dict[ticker] = [cik, name, ticker, exchange]
-
         return [name_dict, tick_dict]
     
     # returns company corresponding to name
@@ -135,10 +136,6 @@ class Edgar:
             return 'Invalid quarter.'
 
         json = self._get_json(cik)
-        # retrieve fiscal year end date
-        fiscal_end = json['fiscalYearEnd']
-        # retrieve month within fiscal end
-        month = int(fiscal_end[:-2])
 
         recent = json['filings']['recent']
         ind = 0
@@ -188,12 +185,22 @@ class Edgar:
         prim_doc = recent['primaryDocument'][ind]
         url = f'https://www.sec.gov/Archives/edgar/data/{cik}/{access_num}/{prim_doc}'
         req = requests.get(url, headers=HEADERS)
-
-        # for testing purposes
-        return url
-
+        #req.encoding = "utf-8"
+        #return md(req.text)
+        #"iso-8559-1"
+        result = req.content.decode(req.encoding, errors='replace')
+        print(result)
+        result = result.encode("utf-8")
+        return md(result)
         #return req.text
-        # TODO use markdown to remove unnecessary characters for easier use by LLM
+        # for testing purposes
+        #return url
+        #soup = BeautifulSoup(req.text.encode('ascii', errors='replace'), "html.parser")
+        #return soup.prettify()
+        #req.text
+        #return req.encoding
+        return md(req.text.encode('utf-8', errors='replace'))
+        #return md(req.text.encode('utf-8', errors='ignore')).encode('utf-8', errors='ignore')
 
 
 def cik_tests(sec):
@@ -236,8 +243,11 @@ def filing_tests(sec):
     print(sec.quarterly_filing(apple_cik, year, quarter))
 
 
-sec = Edgar('https://www.sec.gov/files/company_tickers_exchange.json')
-
+sec = Edgar(URL)
+nvidia_cik = sec.name_to_cik('NVIDIA CORP')[0]
+year = 2024
+quarter = 4
+print(sec.quarterly_filing(nvidia_cik, year, quarter))
 #cik_tests(sec)
 #filing_tests(sec)
 
