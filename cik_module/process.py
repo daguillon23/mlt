@@ -1,13 +1,26 @@
 import json
 import cik
+import boto3
 
-HEADERS = {'user-agent': 'MLT DA diego.eaguillon@gmail.com'}
-BUCKET = "aguillon-tickers"
+# must fill out header with your own info. bucket with your bucket name
+ORG = None
+INITIAL = None
+EMAIL = None
+BUCKET = None
+
+HEADERS = {'user-agent': f'{ORG} {INITIAL} {EMAIL}'}
 KEY = "company_tickers_exchange.json"
 
 def lambda_handler(event, context):
     try:
-        # TODO implement
+        '''
+        expected format:
+        {
+            "ticker": "NVDA",
+            "year": "2021",
+            "quarter": "3"
+        }
+        '''
         sec = cik.Edgar(BUCKET, KEY, HEADERS)
 
         # receive input as JSON
