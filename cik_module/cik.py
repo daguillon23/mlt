@@ -5,10 +5,15 @@ from markdownify import markdownify as md
 import codecs
 from bs4 import BeautifulSoup
 
+# must fill out header with your own info
+ORG = None
+INITIAL = None
+EMAIL = None
+
 def NOT_FOUND(type):
     return f'{type} not found.'
 
-HEADERS = {'user-agent': 'MLT DA diego.eaguillon@gmail.com'}
+HEADERS = {'user-agent': f'{ORG} {INITIAL} {EMAIL}'}
 URL = 'https://www.sec.gov/files/company_tickers_exchange.json'
 
 class Edgar:
